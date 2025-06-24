@@ -1,0 +1,19 @@
+{
+    "users": [
+        {
+            "username": "lealx",
+            "password": "2912",
+            "tipo": "admin"
+        }
+    ],
+    "tasks": [
+        {
+            "id": 1,
+            "titulo": "aulao de hoje",
+            "descricao": "valendo 5 pontos",
+            "status": "em andamento",
+            "criado_por": "lealx",
+            "data": "2025-06-24 19:51"
+        }
+    ]
+}

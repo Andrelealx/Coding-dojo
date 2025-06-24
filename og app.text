@@ -1,0 +1,134 @@
+import SwiftUI
+import WebKit
+import AVKit
+
+// MARK: - Transição Customizada Profissional
+extension AnyTransition {
+    static var professionalTransition: AnyTransition {
+        let insertion = AnyTransition.opacity
+        let removal = AnyTransition
+            .offset(y: -20)                // Desloca a view levemente para cima
+            .combined(with: .scale(scale: 0.95, anchor: .center)) // Reduz a escala de forma sutil
+            .combined(with: .opacity)        // Aplica fade out
+        return .asymmetric(insertion: insertion, removal: removal)
+    }
+}
+
+// MARK: - WebView (Integração do WKWebView no SwiftUI)
+struct WebView: UIViewRepresentable {
+    let url: URL?
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: WebView
+        
+        init(_ parent: WebView) {
+            self.parent = parent
+        }
+        
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            print("Início do carregamento da página.")
+        }
+        
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            print("Página carregada com sucesso.")
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("Erro ao carregar a página: \(error.localizedDescription)")
+        }
+    }
+    
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.navigationDelegate = context.coordinator
+        webView.allowsBackForwardNavigationGestures = true
+        return webView
+    }
+    
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        if let url = url, uiView.url != url {
+            let request = URLRequest(url: url)
+            uiView.load(request)
+        }
+    }
+}
+
+// MARK: - CustomVideoPlayerView
+/// Wrapper para o AVPlayerViewController que desativa os controles e define o modo de exibição do vídeo
+struct CustomVideoPlayerView: UIViewControllerRepresentable {
+    let player: AVPlayer
+    
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = false  // Desativa os controles de reprodução
+        controller.videoGravity = .resizeAspectFill   // Faz o vídeo cobrir toda a tela
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        // Atualizações não são necessárias
+    }
+}
+
+// MARK: - SplashVideoView
+/// Exibe o vídeo de splash sem controles e notifica quando a reprodução termina
+struct SplashVideoView: View {
+    var onVideoFinished: () -> Void
+    
+    private let player: AVPlayer = {
+        guard let url = Bundle.main.url(forResource: "video_logo", withExtension: "mov") else {
+            fatalError("Arquivo de vídeo não encontrado.")
+        }
+        return AVPlayer(url: url)
+    }()
+    
+    var body: some View {
+        CustomVideoPlayerView(player: player)
+            .onAppear {
+                // Inicia o vídeo automaticamente
+                player.play()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime,
+                                                              object: player.currentItem)) { _ in
+                // Notifica quando o vídeo termina
+                onVideoFinished()
+            }
+            .edgesIgnoringSafeArea(.all)
+    }
+}
+
+// MARK: - ContentView com Transição Profissional
+struct ContentView: View {
+    @State private var showSplash: Bool = true
+    
+    var body: some View {
+        ZStack {
+            Color.corcustomizada.ignoresSafeArea()
+            // Conteúdo principal: o WebView
+            WebView(url: URL(string: "https://suporteunica.com"))
+            
+            // Splash view com o vídeo, utilizando a transição profissional
+            if showSplash {
+                SplashVideoView {
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        showSplash = false
+                    }
+                }
+                .transition(.professionalTransition)
+                .zIndex(1) // Garante que a splash view fique sempre à frente
+            }
+        }
+    }
+}
+
+// MARK: - Preview
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
