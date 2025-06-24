@@ -1,0 +1,87 @@
+Documentação do Sistema de Gerenciamento de Alunos em Python
+
+Visão Geral
+
+Este sistema gerencia o cadastro, consulta e alteração de dados de até 20 alunos usando Programação Orientada a Objetos (POO) em Python. Possui autenticação simples baseada em senha, com usuários do tipo Aluno e Administrador. O sistema utiliza uma tabela hash para mapear senhas a índices dos alunos e uma lista ordenada para armazenar os alunos, permitindo buscas binárias eficientes.
+
+O sistema também salva e carrega os dados dos alunos em um arquivo JSON, garantindo persistência entre execuções.
+
+Além disso, utiliza a biblioteca colorama para colorir o terminal, tornando a interface mais agradável e intuitiva.
+
+Estruturas Principais
+
+1. Classe Student
+Representa um aluno com os seguintes atributos:
+
+nome: nome completo do aluno (string)
+disciplina: nome da disciplina associada (string)
+matricula: número de matrícula único (string)
+senha: senha do aluno para autenticação (string)
+Métodos:
+
+__init__: inicializa um objeto aluno com os dados fornecidos.
+__str__: retorna uma string formatada para exibir as informações do aluno coloridas no terminal.
+to_dict: converte o objeto para dicionário, facilitando a serialização para JSON.
+from_dict: método estático que cria um objeto Student a partir de um dicionário.
+2. Classe HashTable
+Implementa uma tabela hash simples para mapear a senha de cada aluno para o índice correspondente na lista de alunos.
+
+size: tamanho da tabela (default 100).
+table: lista que armazena índices.
+Métodos:
+
+hash(key): função hash que soma os códigos ASCII dos caracteres da senha e calcula o módulo pelo tamanho da tabela.
+insert(password, index): insere o índice do aluno na posição calculada pela função hash da senha.
+get(password): retorna o índice do aluno associado a uma senha.
+Obs.: não há tratamento para colisões, pois as senhas são assumidas únicas.
+
+3. Classe StudentManager
+Gerencia a lista de alunos e as operações CRUD, além de interagir com a tabela hash.
+
+Atributos:
+
+students: lista que armazena os objetos Student.
+hash_table: objeto da classe HashTable.
+filename: nome do arquivo JSON para salvar e carregar dados.
+Métodos:
+
+__init__: inicializa a lista, tabela hash e carrega dados do arquivo JSON.
+save_students(): salva os dados dos alunos no arquivo JSON.
+load_students(): carrega os dados do arquivo JSON para a lista e atualiza a tabela hash.
+add_student(): adiciona um aluno com validação de limite (20 alunos) e matrícula única, depois salva os dados.
+rebuild_hash_table(): atualiza a tabela hash com as senhas atuais dos alunos.
+find_student_by_password(senha): busca aluno pela senha usando a tabela hash.
+binary_search(matricula): busca binária pela matrícula na lista ordenada.
+display_student(senha): exibe dados do aluno autenticado pela senha.
+display_student_admin(matricula): exibe dados do aluno para o administrador, buscando por matrícula.
+listar_alunos(): lista todos os alunos cadastrados.
+remover_aluno(): remove aluno pelo número de matrícula e salva os dados.
+alterar_disciplina(): altera a disciplina do aluno identificado pela matrícula e salva.
+4. Função menu()
+Função principal que apresenta a interface de linha de comando para interação do usuário:
+
+Menu inicial com opções para acesso como Aluno, Administrador ou sair.
+Para Aluno: pede senha e exibe seus dados.
+Para Administrador: menu com opções para cadastrar, buscar, listar, remover e alterar disciplina de alunos.
+Uso de colorama para colorir textos e tornar o terminal mais atraente.
+Uso de getpass para esconder entrada da senha.
+Fluxo do Programa
+
+O programa tenta carregar a lista de alunos do arquivo JSON (students.json) ao iniciar.
+O usuário escolhe seu tipo (Aluno ou Administrador).
+Aluno entra com a senha para ver seus dados.
+Administrador pode:
+Cadastrar novos alunos (até 20).
+Buscar aluno por matrícula.
+Listar todos os alunos.
+Remover alunos.
+Alterar a disciplina de um aluno.
+Todas as alterações salvam automaticamente no arquivo JSON.
+O programa continua até o usuário escolher sair.
+Tecnologias e Bibliotecas Utilizadas
+
+Python 3: linguagem escolhida para implementação.
+POO (Programação Orientada a Objetos): para modelar o sistema de forma organizada.
+Módulo json: para salvar e carregar dados em arquivo.
+Módulo getpass: para entrada oculta de senhas.
+Biblioteca colorama: para colorir o texto no terminal, melhorando a experiência do usuário.

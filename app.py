@@ -1,4 +1,8 @@
 import getpass
+import json
+from colorama import Fore, Style, init
+
+init(autoreset=True)
 
 class Student:
     def __init__(self, nome, disciplina, matricula, senha):
@@ -8,7 +12,19 @@ class Student:
         self.senha = senha
 
     def __str__(self):
-        return f"Nome: {self.nome}\nDisciplina: {self.disciplina}\nMatrícula: {self.matricula}"
+        return f"{Fore.CYAN}Nome: {self.nome}\nDisciplina: {self.disciplina}\nMatrícula: {self.matricula}" + Style.RESET_ALL
+
+    def to_dict(self):
+        return {
+            "nome": self.nome,
+            "disciplina": self.disciplina,
+            "matricula": self.matricula,
+            "senha": self.senha,
+        }
+
+    @staticmethod
+    def from_dict(data):
+        return Student(data["nome"], data["disciplina"], data["matricula"], data["senha"])
 
 
 class HashTable:
@@ -29,9 +45,25 @@ class HashTable:
 
 
 class StudentManager:
-    def __init__(self):
+    def __init__(self, filename="students.json"):
         self.students = []
         self.hash_table = HashTable()
+        self.filename = filename
+        self.load_students()
+
+    def save_students(self):
+        with open(self.filename, "w", encoding="utf-8") as f:
+            json.dump([s.to_dict() for s in self.students], f, ensure_ascii=False, indent=4)
+
+    def load_students(self):
+        try:
+            with open(self.filename, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                self.students = [Student.from_dict(d) for d in data]
+                self.students.sort(key=lambda a: a.matricula)
+                self.rebuild_hash_table()
+        except FileNotFoundError:
+            pass  # arquivo não existe ainda
 
     def add_student(self):
         if len(self.students) < 20:
@@ -39,16 +71,17 @@ class StudentManager:
             disciplina = input("Disciplina: ").strip()
             matricula = input("Número de Matrícula: ").strip()
             if any(aluno.matricula == matricula for aluno in self.students):
-                print("Matrícula já cadastrada.")
+                print(Fore.YELLOW + "Matrícula já cadastrada.")
                 return
             senha = getpass.getpass("Senha: ").strip()
             aluno = Student(nome, disciplina, matricula, senha)
             self.students.append(aluno)
             self.students.sort(key=lambda a: a.matricula)
             self.rebuild_hash_table()
-            print("Aluno cadastrado com sucesso!")
+            self.save_students()
+            print(Fore.GREEN + "Aluno cadastrado com sucesso!")
         else:
-            print("Limite de alunos atingido.")
+            print(Fore.RED + "Limite de alunos atingido.")
 
     def rebuild_hash_table(self):
         self.hash_table = HashTable()
@@ -76,27 +109,27 @@ class StudentManager:
     def display_student(self, senha):
         aluno = self.find_student_by_password(senha)
         if aluno:
-            print("\n=== Dados do Aluno ===")
+            print(Fore.MAGENTA + "\n=== Dados do Aluno ===")
             print(aluno)
         else:
-            print("Aluno não encontrado ou senha incorreta.")
+            print(Fore.RED + "Aluno não encontrado ou senha incorreta.")
 
     def display_student_admin(self, matricula):
         index = self.binary_search(matricula)
         if index != -1:
-            print("\n=== Dados do Aluno ===")
+            print(Fore.BLUE + "\n=== Dados do Aluno ===")
             print(self.students[index])
         else:
-            print("Aluno não encontrado.")
+            print(Fore.RED + "Aluno não encontrado.")
 
     def listar_alunos(self):
         if not self.students:
-            print("Nenhum aluno cadastrado.")
+            print(Fore.YELLOW + "Nenhum aluno cadastrado.")
             return
-        print("\n=== Lista de Alunos ===")
+        print(Fore.CYAN + "\n=== Lista de Alunos ===")
         for aluno in self.students:
             print(aluno)
-            print("-" * 30)
+            print(Fore.LIGHTBLACK_EX + "-" * 30)
 
     def remover_aluno(self):
         matricula = input("Digite a matrícula do aluno a ser removido: ").strip()
@@ -104,15 +137,27 @@ class StudentManager:
         if index != -1:
             del self.students[index]
             self.rebuild_hash_table()
-            print("Aluno removido com sucesso.")
+            self.save_students()
+            print(Fore.GREEN + "Aluno removido com sucesso.")
         else:
-            print("Aluno não encontrado.")
+            print(Fore.RED + "Aluno não encontrado.")
+
+    def alterar_disciplina(self):
+        matricula = input("Digite a matrícula do aluno: ").strip()
+        index = self.binary_search(matricula)
+        if index != -1:
+            nova_disciplina = input("Nova disciplina: ").strip()
+            self.students[index].disciplina = nova_disciplina
+            self.save_students()
+            print(Fore.GREEN + "Disciplina atualizada com sucesso!")
+        else:
+            print(Fore.RED + "Aluno não encontrado.")
 
 
 def menu():
     manager = StudentManager()
     while True:
-        print("\n=== Sistema de Gerenciamento de Alunos ===")
+        print(Fore.YELLOW + "\n=== Sistema de Gerenciamento de Alunos ===")
         print("1 - Acesso como Aluno")
         print("2 - Acesso como Administrador")
         print("3 - Sair")
@@ -124,12 +169,13 @@ def menu():
 
         elif opcao == '2':
             while True:
-                print("\n--- Menu do Administrador ---")
+                print(Fore.YELLOW + "\n--- Menu do Administrador ---")
                 print("1 - Cadastrar Aluno")
                 print("2 - Buscar por Matrícula")
                 print("3 - Listar Todos os Alunos")
                 print("4 - Remover Aluno")
-                print("5 - Voltar ao Menu Principal")
+                print("5 - Alterar Disciplina do Aluno")
+                print("6 - Voltar ao Menu Principal")
                 admin_opcao = input("Escolha: ").strip()
                 if admin_opcao == '1':
                     manager.add_student()
@@ -141,15 +187,17 @@ def menu():
                 elif admin_opcao == '4':
                     manager.remover_aluno()
                 elif admin_opcao == '5':
+                    manager.alterar_disciplina()
+                elif admin_opcao == '6':
                     break
                 else:
-                    print("Opção inválida.")
+                    print(Fore.RED + "Opção inválida.")
 
         elif opcao == '3':
-            print("Saindo...")
+            print(Fore.LIGHTBLUE_EX + "Saindo...")
             break
         else:
-            print("Opção inválida.")
+            print(Fore.RED + "Opção inválida.")
 
 
 if __name__ == "__main__":
