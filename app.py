@@ -1,200 +1,156 @@
-import json
-import os
-from getpass import getpass
-from datetime import datetime
+import getpass
 
-DB_FILE = "db.json"
+class Student:
+    def __init__(self, nome, disciplina, matricula, senha):
+        self.nome = nome
+        self.disciplina = disciplina
+        self.matricula = matricula
+        self.senha = senha
 
-STATUS_OPTIONS = ["pendente", "em andamento", "concluída"]
+    def __str__(self):
+        return f"Nome: {self.nome}\nDisciplina: {self.disciplina}\nMatrícula: {self.matricula}"
 
 
-def load_db():
-    if not os.path.exists(DB_FILE):
-        with open(DB_FILE, 'w') as f:
-            json.dump({"users": [], "tasks": []}, f)
-    with open(DB_FILE, 'r') as f:
-        return json.load(f)
+class HashTable:
+    def __init__(self, size=100):
+        self.size = size
+        self.table = [None] * size
 
-def save_db(db):
-    with open(DB_FILE, 'w') as f:
-        json.dump(db, f, indent=4)
+    def hash(self, key):
+        return sum(ord(char) for char in key) % self.size
 
-def clear():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    def insert(self, password, index):
+        h = self.hash(password)
+        self.table[h] = index
 
-def register():
-    db = load_db()
-    print("\n=== Cadastro de Usuário ===")
-    username = input("Nome de usuário: ").strip()
-    if not username:
-        print("Nome de usuário não pode ser vazio!")
-        return
-    if any(u['username'] == username for u in db['users']):
-        print("Usuário já existe!")
-        return
-    password = getpass("Senha: ").strip()
-    if not password:
-        print("Senha não pode ser vazia!")
-        return
-    tipo = input("Tipo (usuario/admin): ").strip().lower()
-    if tipo not in ["usuario", "admin"]:
-        print("Tipo inválido.")
-        return
-    db['users'].append({"username": username, "password": password, "tipo": tipo})
-    save_db(db)
-    print("Usuário cadastrado com sucesso!")
+    def get(self, password):
+        h = self.hash(password)
+        return self.table[h]
 
-def login():
-    db = load_db()
-    print("\n=== Login ===")
-    username = input("Usuário: ").strip()
-    password = getpass("Senha: ").strip()
-    user = next((u for u in db['users'] if u['username'] == username and u['password'] == password), None)
-    if user:
-        print(f"Bem-vindo, {user['username']}!\n")
-        return user
-    print("Usuário ou senha incorretos.")
-    return None
 
-def criar_tarefa(user):
-    db = load_db()
-    print("\n=== Criar Nova Tarefa ===")
-    titulo = input("Título: ").strip()
-    descricao = input("Descrição: ").strip()
-    status = input("Status (pendente/em andamento/concluída): ").strip().lower()
-    if not titulo or not descricao:
-        print("Título e descrição são obrigatórios.")
-        return
-    if status not in STATUS_OPTIONS:
-        status = "pendente"
-    novo_id = max([t['id'] for t in db['tasks']], default=0) + 1
-    tarefa = {
-        "id": novo_id,
-        "titulo": titulo,
-        "descricao": descricao,
-        "status": status,
-        "criado_por": user['username'],
-        "data": datetime.now().strftime("%Y-%m-%d %H:%M")
-    }
-    db['tasks'].append(tarefa)
-    save_db(db)
-    print("Tarefa criada com sucesso!")
+class StudentManager:
+    def __init__(self):
+        self.students = []
+        self.hash_table = HashTable()
 
-def listar_tarefas(user):
-    db = load_db()
-    print("\n=== Lista de Tarefas ===")
-    encontrou = False
-    for t in db['tasks']:
-        if user['tipo'] == 'admin' or t['criado_por'] == user['username']:
-            encontrou = True
-            print(f"[{t['id']}] {t['titulo']} ({t['criado_por']}) - {t['data']} - Status: {t.get('status', 'pendente')}")
-            print(f"    {t['descricao']}\n")
-    if not encontrou:
-        print("Nenhuma tarefa encontrada.")
-
-def editar_tarefa(user):
-    db = load_db()
-    listar_tarefas(user)
-    tarefa_id = input("ID da tarefa para editar: ").strip()
-    for t in db['tasks']:
-        if str(t['id']) == tarefa_id and (user['tipo'] == 'admin' or t['criado_por'] == user['username']):
-            novo_titulo = input(f"Novo título (atual: {t['titulo']}): ").strip()
-            nova_desc = input(f"Nova descrição (atual: {t['descricao']}): ").strip()
-            novo_status = input(f"Novo status (atual: {t.get('status', 'pendente')}): ").strip().lower()
-            if novo_titulo:
-                t['titulo'] = novo_titulo
-            if nova_desc:
-                t['descricao'] = nova_desc
-            if novo_status in STATUS_OPTIONS:
-                t['status'] = novo_status
-            save_db(db)
-            print("Tarefa atualizada.")
-            return
-    print("Tarefa não encontrada ou sem permissão.")
-
-def excluir_tarefa(user):
-    db = load_db()
-    listar_tarefas(user)
-    tarefa_id = input("ID da tarefa para excluir: ").strip()
-    for t in db['tasks']:
-        if str(t['id']) == tarefa_id and (user['tipo'] == 'admin' or t['criado_por'] == user['username']):
-            db['tasks'].remove(t)
-            save_db(db)
-            print("Tarefa excluída.")
-            return
-    print("Tarefa não encontrada ou sem permissão.")
-
-def menu_usuario(user):
-    while True:
-        print("\n=== MENU USUÁRIO ===")
-        print("1 - Criar tarefa")
-        print("2 - Ver tarefas")
-        print("3 - Editar tarefa")
-        print("4 - Excluir tarefa")
-        print("5 - Sair")
-        opcao = input("Escolha: ").strip()
-        if opcao == '1':
-            criar_tarefa(user)
-        elif opcao == '2':
-            listar_tarefas(user)
-        elif opcao == '3':
-            editar_tarefa(user)
-        elif opcao == '4':
-            excluir_tarefa(user)
-        elif opcao == '5':
-            break
+    def add_student(self):
+        if len(self.students) < 20:
+            nome = input("Nome: ").strip()
+            disciplina = input("Disciplina: ").strip()
+            matricula = input("Número de Matrícula: ").strip()
+            if any(aluno.matricula == matricula for aluno in self.students):
+                print("Matrícula já cadastrada.")
+                return
+            senha = getpass.getpass("Senha: ").strip()
+            aluno = Student(nome, disciplina, matricula, senha)
+            self.students.append(aluno)
+            self.students.sort(key=lambda a: a.matricula)
+            self.rebuild_hash_table()
+            print("Aluno cadastrado com sucesso!")
         else:
-            print("Opção inválida.")
+            print("Limite de alunos atingido.")
 
-def menu_admin(user):
-    while True:
-        print("\n=== MENU ADMIN ===")
-        print("1 - Criar tarefa")
-        print("2 - Ver todas as tarefas")
-        print("3 - Editar tarefa")
-        print("4 - Excluir tarefa")
-        print("5 - Criar novo usuário")
-        print("6 - Sair")
-        opcao = input("Escolha: ").strip()
-        if opcao == '1':
-            criar_tarefa(user)
-        elif opcao == '2':
-            listar_tarefas(user)
-        elif opcao == '3':
-            editar_tarefa(user)
-        elif opcao == '4':
-            excluir_tarefa(user)
-        elif opcao == '5':
-            register()
-        elif opcao == '6':
-            break
+    def rebuild_hash_table(self):
+        self.hash_table = HashTable()
+        for i, aluno in enumerate(self.students):
+            self.hash_table.insert(aluno.senha, i)
+
+    def find_student_by_password(self, senha):
+        index = self.hash_table.get(senha)
+        if index is not None and index < len(self.students):
+            return self.students[index]
+        return None
+
+    def binary_search(self, matricula):
+        inicio, fim = 0, len(self.students) - 1
+        while inicio <= fim:
+            meio = (inicio + fim) // 2
+            if self.students[meio].matricula == matricula:
+                return meio
+            elif self.students[meio].matricula < matricula:
+                inicio = meio + 1
+            else:
+                fim = meio - 1
+        return -1
+
+    def display_student(self, senha):
+        aluno = self.find_student_by_password(senha)
+        if aluno:
+            print("\n=== Dados do Aluno ===")
+            print(aluno)
         else:
-            print("Opção inválida.")
+            print("Aluno não encontrado ou senha incorreta.")
 
-def main():
-    clear()
-    print("=== Sistema GRUD de Tarefas ===")
+    def display_student_admin(self, matricula):
+        index = self.binary_search(matricula)
+        if index != -1:
+            print("\n=== Dados do Aluno ===")
+            print(self.students[index])
+        else:
+            print("Aluno não encontrado.")
+
+    def listar_alunos(self):
+        if not self.students:
+            print("Nenhum aluno cadastrado.")
+            return
+        print("\n=== Lista de Alunos ===")
+        for aluno in self.students:
+            print(aluno)
+            print("-" * 30)
+
+    def remover_aluno(self):
+        matricula = input("Digite a matrícula do aluno a ser removido: ").strip()
+        index = self.binary_search(matricula)
+        if index != -1:
+            del self.students[index]
+            self.rebuild_hash_table()
+            print("Aluno removido com sucesso.")
+        else:
+            print("Aluno não encontrado.")
+
+
+def menu():
+    manager = StudentManager()
     while True:
-        print("\n1 - Login")
-        print("2 - Cadastrar")
+        print("\n=== Sistema de Gerenciamento de Alunos ===")
+        print("1 - Acesso como Aluno")
+        print("2 - Acesso como Administrador")
         print("3 - Sair")
         opcao = input("Escolha: ").strip()
+
         if opcao == '1':
-            user = login()
-            if user:
-                clear()
-                if user['tipo'] == 'admin':
-                    menu_admin(user)
-                else:
-                    menu_usuario(user)
-                clear()
+            senha = getpass.getpass("Digite sua senha: ").strip()
+            manager.display_student(senha)
+
         elif opcao == '2':
-            register()
+            while True:
+                print("\n--- Menu do Administrador ---")
+                print("1 - Cadastrar Aluno")
+                print("2 - Buscar por Matrícula")
+                print("3 - Listar Todos os Alunos")
+                print("4 - Remover Aluno")
+                print("5 - Voltar ao Menu Principal")
+                admin_opcao = input("Escolha: ").strip()
+                if admin_opcao == '1':
+                    manager.add_student()
+                elif admin_opcao == '2':
+                    matricula = input("Digite a matrícula: ").strip()
+                    manager.display_student_admin(matricula)
+                elif admin_opcao == '3':
+                    manager.listar_alunos()
+                elif admin_opcao == '4':
+                    manager.remover_aluno()
+                elif admin_opcao == '5':
+                    break
+                else:
+                    print("Opção inválida.")
+
         elif opcao == '3':
             print("Saindo...")
             break
         else:
             print("Opção inválida.")
 
-if __name__ == '__main__':
-    main()
+
+if __name__ == "__main__":
+    menu()
